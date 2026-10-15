@@ -1,0 +1,25 @@
+name: kapper
+description: Kapper salon booking frontend with customer and vendor experiences.
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: ^3.13.1
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.7
+  image_picker: ^1.2.1
+  cupertino_icons: ^1.0.8
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+  fonts:
+    - family: KapperSans
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
