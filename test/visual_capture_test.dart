@@ -10,6 +10,7 @@ import 'package:kapper/core/widgets/shared.dart';
 import 'package:kapper/data/mock_salon_repository.dart';
 import 'package:kapper/domain/models.dart';
 import 'package:kapper/features/auth/presentation/auth_pages.dart';
+import 'package:kapper/features/auth/presentation/customer_auth_page.dart';
 import 'package:kapper/features/salons/presentation/discovery_pages.dart';
 import 'package:kapper/features/salons/presentation/salon_page.dart';
 import 'package:kapper/features/account/presentation/account_pages.dart';
@@ -54,10 +55,8 @@ void main() {
     final a = bloc.state.appointments.first;
     final screens = <String, Widget>{
       'role': const RolePage(),
-      'phone': const PhonePage(),
-      'otp': const OtpPage(phone: '+92 1234567890'),
-      'complete': const CompleteProfilePage(),
-      'signin': const CompleteProfilePage(signIn: true),
+      'signin': const CustomerAuthPage(),
+      'signup': const CustomerAuthPage(createAccount: true),
       'dashboard': const Scaffold(body: DashboardPage()),
       'search': const SearchPage(),
       'salon': const SalonPage(),
@@ -71,8 +70,6 @@ void main() {
       'style_preview': const StylePreviewPage(),
       'vendor_salon': const SalonPage(vendor: true),
       'vendor_profile': const ProfilePage(),
-      'vendor_complete': const CompleteProfilePage(),
-      'vendor_signin': const CompleteProfilePage(signIn: true),
       'edit_profile': const EditProfilePage(),
       'upload': const UploadPage(),
       'availability': const AvailabilityPage(),

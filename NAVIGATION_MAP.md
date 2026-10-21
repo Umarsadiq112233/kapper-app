@@ -4,7 +4,7 @@ Launch → session state → role selection → phone → OTP → profile comple
 Phone → password sign in → role home. OTP → edit phone or resend.
 
 Customer home tabs: Dashboard / Inbox / Style preview (pushed route) / Appointments / Profile.
-Vendor home tabs: Salon / Custom Styles / Inbox / Appointments / Profile.
+Vendor home tabs: Dashboard / Custom Styles / Inbox / Appointments / Profile. The dashboard metrics and schedule derive from the signed-in vendor's appointments and services; quick actions open service, availability, portfolio, appointments, messages, and salon-profile flows.
 Tab bodies use IndexedStack to preserve their state.
 
 Dashboard → Search → Filter dialog → Salon.
@@ -21,4 +21,4 @@ Vendor salon → Add/Edit Service dialog → Save.
 Vendor portfolio → Upload → Select/Create Album → Save.
 Vendor styles → Create Style dialog → Save.
 
-All named routes are registered in lib/main.dart. Signed-out protected routes return to role selection; customer requests for /vendor/* return to home. Chat routes validate appointment IDs and vendor ownership. Booking confirmation requires an existing booking. Unknown routes recover to home. Demo sign out preserves catalog/booking data so the two roles can be explored in one process.
+All named routes are registered in lib/main.dart with reduced-motion-aware fade/slide transitions. Signed-out protected routes return to role selection; customer requests for /vendor/* return to home. Chat routes validate appointment IDs and vendor ownership. Booking confirmation requires an existing booking. Unknown routes recover to home. Demo sign out preserves catalog/booking data so the two roles can be explored in one process.

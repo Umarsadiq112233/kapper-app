@@ -35,24 +35,16 @@
 			<key>UIWindowSceneSessionRoleApplication</key>
 			<array>
 				<dict>
-					<key>UISceneClassName</key>
-					<string>UIWindowScene</string>
 					<key>UISceneConfigurationName</key>
 					<string>flutter</string>
 					<key>UISceneDelegateClassName</key>
 					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
 					<key>UISceneStoryboardFile</key>
 					<string>Main</string>
-				<key>NSPhotoLibraryUsageDescription</key>
-<string>Select salon portfolio, service, and hairstyle pictures.</string>
-</dict>
+				</dict>
 			</array>
-		<key>NSPhotoLibraryUsageDescription</key>
-<string>Select salon portfolio, service, and hairstyle pictures.</string>
-</dict>
-	<key>NSPhotoLibraryUsageDescription</key>
-<string>Select salon portfolio, service, and hairstyle pictures.</string>
-</dict>
+		</dict>
+	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -72,7 +64,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-<key>NSPhotoLibraryUsageDescription</key>
-<string>Select salon portfolio, service, and hairstyle pictures.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select salon portfolio, service, and hairstyle pictures.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take salon portfolio, service, and hairstyle pictures.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Kapper uses your location when you choose Set location to update your salon address.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Kapper uses your location to discover nearby salons and show accurate distances.</string>
 </dict>
 </plist>

@@ -29,7 +29,7 @@ Reference batch: 14 October 2026, 18:39–18:43. Image numbers refer to the 15 a
 | P05 | 6, 11 | `/transactions` | Session booking-derived demo ledger; no financial processor records |
 | P06 | 6, 11 | `/transactions/detail` | Demo transaction details |
 | C01 | 6 | `/styles/preview` | Selectable image carousel; original same-person hairstyle variants and AR not available |
-| V01 | 8 | `/vendor/upload` | Native image picker, album selection, upload to session gallery |
+| V01 | 8 | `/vendor/upload` | Native image picker and album selection; live vendor uploads to private Supabase Storage, demo remains local |
 | V02 | 8 | Create Album dialog | Validated name, session album creation |
 | V03 | 8 | `/vendor/availability` | Compact date tiles and slot chips, draft edits and save |
 | V04 | 9 | Add/Edit Date dialog | Day/month/year controls and past-date validation |
@@ -38,6 +38,7 @@ Reference batch: 14 October 2026, 18:39–18:43. Image numbers refer to the 15 a
 | V07 | 8, 9 | Add/Edit Service dialog | Image picker, name, duration, description, price; existing thumbnail shown |
 | V08 | 12 | `/vendor/styles`, home tab | Custom style list and create action |
 | V09 | 12 | Create Style dialog | Image, name, description and session save |
+| V10 | Dashboard 2 | Vendor home, tab 0 | Purple gradient appointment summary, database-derived appointment/customer/service counts, popularity from bookings, availability, schedule, shortcuts and Realtime; no fabricated earnings |
 
 ## Validation
 
@@ -50,3 +51,5 @@ Reference batch: 14 October 2026, 18:39–18:43. Image numbers refer to the 15 a
 ## Outstanding production work
 
 Persistent session/auth backend, provider credentials, remote messaging, per-salon/per-date availability storage, payment processor/tokenization/webhooks and refunds, original design assets/fonts, actual camera/AR tracking, platform-device testing, and remaining visual differences noted above. Data resets on process restart. Only the Danial vendor is editable. Other demo salons keep their own fixture catalog and availability; edits to Danial do not change them. Time slots still apply uniformly to each available date within that salon.
+
+Vendor Realtime subscriptions are scoped to the authenticated owner and cover workspace, appointments, messages, reviews, and notifications. Database triggers create booking/status/message notifications; vendors can persist read state. Migration `202610150004_vendor_realtime.sql` adds these records and publication membership without deleting existing data. Apply it and verify Realtime is enabled in the target Supabase project. Static OTP remains a local demo path and never creates a Supabase Auth session. Push delivery is not configured.

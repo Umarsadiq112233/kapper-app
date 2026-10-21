@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local environment configuration (never put SMTP/service-role secrets in Flutter).
+config/supabase.json
+.env
+.env.*
+!.env.example

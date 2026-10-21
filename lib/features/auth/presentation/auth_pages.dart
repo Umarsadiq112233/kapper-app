@@ -6,7 +6,6 @@ import '../../../application/app_bloc.dart';
 import '../../../domain/models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shared.dart';
-import '../../../core/widgets/role_illustration.dart';
 
 class AuthBackground extends StatelessWidget {
   const AuthBackground({super.key, required this.child, this.photo});
@@ -45,14 +44,12 @@ class AuthBackground extends StatelessWidget {
               builder: (_, constraints) => SingleChildScrollView(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 28,
-                      ),
-                      child: Entrance(child: child),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 28,
                     ),
+                    child: Entrance(child: child),
                   ),
                 ),
               ),
@@ -68,514 +65,332 @@ class RolePage extends StatelessWidget {
   const RolePage({super.key});
   @override
   Widget build(BuildContext context) => BlocBuilder<AppBloc, AppState>(
-    builder: (context, state) => AuthBackground(
-      child: Column(
-        children: [
-          const SizedBox(height: 28),
-          const Brand(),
-          const SizedBox(height: 20),
-          const Text(
-            'Sign up as',
-            style: TextStyle(color: Colors.white, fontSize: 24),
+    builder: (context, state) {
+      final isDark = state.isDark;
+      final foreground = isDark ? Colors.white : const Color(0xFF16182E);
+      final muted = isDark ? const Color(0xFFC0C2D1) : const Color(0xFF74788B);
+      final selectedRole = state.role ?? AccountRole.vendor;
+      return Scaffold(
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? const [Color(0xFF11131D), Color(0xFF05070D)]
+                  : const [Color(0xFFFFFCF8), Color(0xFFF5F2F8)],
+            ),
           ),
-          const Spacer(),
-          ...[AccountRole.vendor, AccountRole.customer].map(
-            (role) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: GestureDetector(
-                onTap: () => context.read<AppBloc>().add(SelectRole(role)),
-                child: AnimatedContainer(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 240),
-                  width: 172,
-                  height: 172,
-                  decoration: BoxDecoration(
-                    color: state.role == role ? Palette.gold : Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: .15),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(22, 8, 22, 20),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight - 28),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      RoleIllustration(vendor: role == AccountRole.vendor),
-                      const SizedBox(height: 6),
-                      Text(
-                        role == AccountRole.vendor ? 'Vendor' : 'User',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w500,
-                          color: state.role == role
-                              ? Colors.white
-                              : Palette.ink,
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          tooltip: isDark
+                              ? 'Switch to light mode'
+                              : 'Switch to dark mode',
+                          onPressed: () =>
+                              context.read<AppBloc>().add(ToggleTheme()),
+                          icon: Icon(
+                            isDark
+                                ? Icons.light_mode_rounded
+                                : Icons.dark_mode_rounded,
+                          ),
+                          color: foreground,
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      Brand(size: 58),
+                      const SizedBox(height: 2),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(width: 42, height: 1, color: Palette.gold),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 9),
+                            child: Icon(Icons.content_cut_rounded, size: 21, color: Palette.gold),
+                          ),
+                          Container(width: 42, height: 1, color: Palette.gold),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Sign up as',
+                        style: TextStyle(fontSize: 27, fontWeight: FontWeight.w600, color: foreground),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Choose how you want to use Kapper',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: muted),
+                      ),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        height: 330,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: _RoleCard(
+                                role: AccountRole.vendor,
+                                selected: selectedRole == AccountRole.vendor,
+                                isDark: isDark,
+                                foreground: foreground,
+                                muted: muted,
+                                onTap: () => context
+                                    .read<AppBloc>()
+                                    .add(SelectRole(AccountRole.vendor)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _RoleCard(
+                                role: AccountRole.customer,
+                                selected: selectedRole == AccountRole.customer,
+                                isDark: isDark,
+                                foreground: foreground,
+                                muted: muted,
+                                onTap: () => context
+                                    .read<AppBloc>()
+                                    .add(SelectRole(AccountRole.customer)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 26),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 58,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF7136EE), Color(0xFFB652F5)],
+                            ),
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Palette.purple.withValues(alpha: .24),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(30),
+                              onTap: () async {
+                                final bloc = context.read<AppBloc>();
+                                bloc.add(SelectRole(selectedRole));
+                                await bloc.stream.firstWhere(
+                                  (next) => next.role == selectedRole,
+                                );
+                                if (!context.mounted) return;
+                                Navigator.pushNamed(
+                                  context,
+                                  selectedRole == AccountRole.vendor
+                                      ? '/auth/vendor'
+                                      : '/auth/customer',
+                                );
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 28),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Continue',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 21),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        context.read<AppBloc>().liveVendor
+                            ? selectedRole == AccountRole.vendor
+                                ? 'Vendor account · email & password'
+                                : 'User account · email & password'
+                            : selectedRole == AccountRole.vendor
+                                ? 'Vendor preview · demo code 123456'
+                                : 'Frontend preview · no live account required',
+                        style: TextStyle(color: muted, fontSize: 10),
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
-          ),
-          const Spacer(),
-          const SizedBox(height: 30),
-          AppButton(
-            'Continue',
-            gold: true,
-            onTap: () {
-              context.read<AppBloc>().add(
-                SelectRole(state.role ?? AccountRole.customer),
-              );
-              Navigator.pushNamed(context, '/auth/phone');
-            },
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Frontend preview · no live account required',
-            style: TextStyle(color: Colors.white60, fontSize: 10),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class PhonePage extends StatefulWidget {
-  const PhonePage({super.key});
-  @override
-  State<PhonePage> createState() => _PhonePageState();
-}
-
-class _PhonePageState extends State<PhonePage> {
-  final phone = TextEditingController();
-  final form = GlobalKey<FormState>();
-  @override
-  void dispose() {
-    phone.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AuthBackground(
-    photo: 'tools',
-    child: Form(
-      key: form,
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: BackButton(
-              color: Colors.white,
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          const Spacer(),
-          const Text(
-            'Welcome to',
-            style: TextStyle(fontSize: 24, color: Colors.white),
-          ),
-          const Brand(size: 64),
-          const Spacer(),
-          Row(
-            children: [
-              const Text(
-                '+92  ',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-              Expanded(
-                child: TextFormField(
-                  controller: phone,
-                  style: const TextStyle(color: Colors.white),
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(15),
-                  ],
-                  decoration: const InputDecoration(
-                    hintText: 'Enter Phone Number',
-                    hintStyle: TextStyle(color: Colors.white70),
-                    fillColor: Colors.transparent,
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                  ),
-                  validator: (v) => v == null || v.length < 8
-                      ? 'Enter a valid phone number'
-                      : null,
-                ),
-              ),
-              IconButton.filled(
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Palette.ink,
-                ),
-                icon: const Icon(Icons.arrow_forward),
-                onPressed: () {
-                  if (form.currentState!.validate()) {
-                    Navigator.pushNamed(
-                      context,
-                      '/auth/otp',
-                      arguments: '+92 ${phone.text}',
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
-          const Text('OR', style: TextStyle(color: Colors.white)),
-          const SizedBox(height: 20),
-          ...[
-            (Icons.g_mobiledata, 'Google', Colors.blue),
-            (Icons.facebook, 'Facebook', Colors.blue),
-            (Icons.apple, 'Apple', Colors.black),
-          ].map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 15),
-              child: SizedBox(
-                height: 47,
-                width: double.infinity,
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  onPressed: () => toast(
-                    context,
-                    '${item.$2} sign-in is not connected in this frontend demo.',
-                  ),
-                  icon: Icon(item.$1, color: item.$3, size: 28),
-                  label: Text(
-                    'Sign up with ${item.$2}',
-                    style: const TextStyle(color: Palette.ink, fontSize: 12),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pushNamed(context, '/auth/signin'),
-            child: const Text(
-              'Already have an account? Sign in',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-          const Spacer(),
-        ],
-      ),
-    ),
-  );
-}
-
-class OtpPage extends StatefulWidget {
-  const OtpPage({super.key, required this.phone});
-  final String phone;
-  @override
-  State<OtpPage> createState() => _OtpPageState();
-}
-
-class _OtpPageState extends State<OtpPage> {
-  final code = TextEditingController();
-  @override
-  void dispose() {
-    code.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => LocalView(
-    builder: (context, state) => AuthBackground(
-      photo: 'tools',
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Brand(size: 46),
-          const SizedBox(height: 36),
-          Surface(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.phonelink_lock_outlined,
-                  size: 64,
-                  color: Palette.purple,
-                ),
-                const SizedBox(height: 22),
-                const Text(
-                  'OTP Verification',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Enter the code for ${widget.phone}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Palette.muted, fontSize: 11),
-                ),
-                const SizedBox(height: 24),
-                OtpInput(controller: code),
-                const SizedBox(height: 12),
-                const Text(
-                  'Demo verification code: 123456',
-                  style: TextStyle(fontSize: 11, color: Palette.muted),
-                ),
-                if (state.get('error', '').isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(
-                      state.get('error', ''),
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                const SizedBox(height: 18),
-                const Text(
-                  "Didn't receive OTP code?",
-                  style: TextStyle(fontSize: 11, color: Palette.muted),
-                ),
-                TextButton(
-                  onPressed: state.get('resent', false)
-                      ? null
-                      : () {
-                          change(context, 'resent', true);
-                          toast(
-                            context,
-                            'Demo code is 123456. No SMS is sent.',
-                          );
-                          Future.delayed(const Duration(seconds: 30), () {
-                            if (context.mounted) {
-                              change(context, 'resent', false);
-                            }
-                          });
-                        },
-                  child: Text(
-                    state.get('resent', false)
-                        ? 'Resend available in 30 seconds'
-                        : 'Resend Code',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                AppButton(
-                  state.get('busy', false) ? 'Verifying…' : 'Verify & Proceed',
-                  onTap: state.get('busy', false)
-                      ? null
-                      : () async {
-                          if (code.text != '123456') {
-                            change(
-                              context,
-                              'error',
-                              'Please enter the demo code 123456',
-                            );
-                            return;
-                          }
-                          change(context, 'busy', true);
-                          await Future<void>.delayed(
-                            const Duration(milliseconds: 500),
-                          );
-                          if (context.mounted) {
-                            Navigator.pushReplacementNamed(
-                              context,
-                              '/auth/complete',
-                            );
-                          }
-                        },
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Not your number? Edit phone number',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class CompleteProfilePage extends StatefulWidget {
-  const CompleteProfilePage({super.key, this.signIn = false});
-  final bool signIn;
-  @override
-  State<CompleteProfilePage> createState() => _CompleteProfilePageState();
-}
-
-class _CompleteProfilePageState extends State<CompleteProfilePage> {
-  final form = GlobalKey<FormState>();
-  final name = TextEditingController(),
-      email = TextEditingController(),
-      password = TextEditingController(),
-      repeat = TextEditingController();
-  @override
-  void dispose() {
-    for (final c in [name, email, password, repeat]) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => LocalView(
-    builder: (context, state) {
-      final vendor = context.watch<AppBloc>().state.isVendor;
-      Widget field(
-        String hint,
-        TextEditingController controller, {
-        bool secret = false,
-        String? Function(String?)? validator,
-      }) => Padding(
-        padding: const EdgeInsets.only(bottom: 18),
-        child: TextFormField(
-          controller: controller,
-          obscureText: secret && !state.get('visible', false),
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white70, fontSize: 13),
-            fillColor: Colors.white.withValues(alpha: .25),
-            suffixIcon: secret
-                ? IconButton(
-                    icon: Icon(
-                      state.get('visible', false)
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    onPressed: () => change(
-                      context,
-                      'visible',
-                      !state.get('visible', false),
-                    ),
-                  )
-                : null,
-          ),
-          validator: validator ?? requiredField,
-        ),
-      );
-      return AuthBackground(
-        photo: vendor ? 'salon' : null,
-        child: Form(
-          key: form,
-          child: Column(
-            children: [
-              const SizedBox(height: 30),
-              const Brand(),
-              const SizedBox(height: 12),
-              Text(
-                widget.signIn ? 'Welcome Back' : 'Complete Profile',
-                style: const TextStyle(fontSize: 24, color: Colors.white),
-              ),
-              const SizedBox(height: 50),
-              if (!widget.signIn) ...[
-                field(vendor ? 'Enter Salon Name' : 'Enter full name', name),
-                if (vendor)
-                  field(
-                    'Enter Email',
-                    email,
-                    validator: (v) =>
-                        v != null && RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v)
-                        ? null
-                        : 'Enter a valid email',
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 18),
-                    child: DropdownButtonFormField<String>(
-                      initialValue: null,
-                      dropdownColor: const Color(0xFF583A70),
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        fillColor: Colors.white.withValues(alpha: .25),
-                      ),
-                      hint: const Text(
-                        'Select Gender',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
-                      items: ['Female', 'Male', 'Prefer not to say']
-                          .map(
-                            (s) => DropdownMenuItem(value: s, child: Text(s)),
-                          )
-                          .toList(),
-                      onChanged: (v) => change(context, 'gender', v),
-                      validator: requiredField,
-                    ),
-                  ),
-              ],
-              field(
-                'Enter Password',
-                password,
-                secret: true,
-                validator: (v) => v == null || v.length < 6
-                    ? 'Use at least 6 characters'
-                    : null,
-              ),
-              if (!widget.signIn)
-                field(
-                  'Confirm Password',
-                  repeat,
-                  secret: true,
-                  validator: (v) =>
-                      v != password.text ? 'Passwords do not match' : null,
-                ),
-              const SizedBox(height: 28),
-              AppButton(
-                state.get('busy', false) ? 'Please wait…' : 'Finish',
-                gold: true,
-                onTap: state.get('busy', false)
-                    ? null
-                    : () async {
-                        if (!form.currentState!.validate()) return;
-                        change(context, 'busy', true);
-                        await Future<void>.delayed(
-                          const Duration(milliseconds: 450),
-                        );
-                        if (!context.mounted) return;
-                        context.read<AppBloc>().add(
-                          SignIn(name.text.trim(), email.text.trim()),
-                        );
-                        await Future<void>.delayed(Duration.zero);
-                        if (context.mounted) {
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/home',
-                            (_) => false,
-                          );
-                        }
-                      },
-              ),
-              if (widget.signIn)
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    '/auth/otp',
-                    arguments: 'your demo number',
-                  ),
-                  child: const Text(
-                    'Wanna login through OTP? Send OTP',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ),
-              const SizedBox(height: 20),
-              const Text(
-                'Demo only · credentials are not stored',
-                style: TextStyle(color: Colors.white60, fontSize: 10),
-              ),
-              const Spacer(),
-            ],
           ),
         ),
       );
     },
   );
+}
+
+class _RoleCard extends StatelessWidget {
+  const _RoleCard({
+    required this.role,
+    required this.selected,
+    required this.isDark,
+    required this.foreground,
+    required this.muted,
+    required this.onTap,
+  });
+
+  final AccountRole role;
+  final bool selected;
+  final bool isDark;
+  final Color foreground;
+  final Color muted;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final vendor = role == AccountRole.vendor;
+    final title = vendor ? 'Vendor' : 'User';
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$title account',
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 220),
+          padding: const EdgeInsets.fromLTRB(10, 14, 10, 16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF121521) : Colors.white.withValues(alpha: .88),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: selected
+                  ? (isDark
+                        ? const Color(0xFFBD57FF)
+                        : const Color(0xFFB58AFF))
+                  : (isDark
+                        ? const Color(0xFF252A39)
+                        : const Color(0xFFEEEAF1)),
+              width: selected ? 1.6 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: selected
+                    ? Palette.purple.withValues(alpha: isDark ? .22 : .12)
+                    : Colors.black.withValues(alpha: isDark ? .14 : .045),
+                blurRadius: selected ? 20 : 12,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Flexible(
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: Image.asset(
+                        vendor ? 'assets/images/role_vendor.jpg' : 'assets/images/role_user.jpg',
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                      ),
+                    ),
+                    if (vendor)
+                      Positioned(
+                        top: 3,
+                        right: 2,
+                        child: Container(
+                          width: 31,
+                          height: 31,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFD575),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Color(0xFF75420A),
+                            size: 19,
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      bottom: 2,
+                      right: 2,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? const Color(0xFF863DF1)
+                              : (isDark
+                                    ? const Color(0xFF22283A)
+                                    : const Color(0xFFF2F0F4)),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.arrow_forward_rounded, size: 19, color: selected ? Colors.white : foreground),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ),
+              const SizedBox(height: 15),
+              Text(
+                title,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                vendor
+                    ? 'List your services, manage bookings and grow your business.'
+                    : 'Find barbers, book appointments and enjoy premium grooming.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: muted, fontSize: 12, height: 1.45),
+              ),
+              const Spacer(),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 34,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? const Color(0xFF9E53F2)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class OtpInput extends StatefulWidget {

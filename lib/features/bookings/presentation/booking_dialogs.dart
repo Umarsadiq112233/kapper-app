@@ -147,7 +147,11 @@ class PaymentPage extends StatelessWidget {
   const PaymentPage({super.key, required this.appointment});
   final Appointment appointment;
   @override
-  Widget build(BuildContext context) => LocalView(
+  Widget build(BuildContext context) {
+    if (context.watch<AppBloc>().liveCustomer) {
+      return _LivePayAtSalonPage(appointment: appointment);
+    }
+    return LocalView(
     builder: (context, view) => Screen(
       title: 'Payment Information',
       child: ListView(
@@ -305,6 +309,65 @@ class PaymentPage extends StatelessWidget {
         ],
       ),
     ),
+  );
+  }
+}
+
+class _LivePayAtSalonPage extends StatefulWidget {
+  const _LivePayAtSalonPage({required this.appointment});
+  final Appointment appointment;
+
+  @override
+  State<_LivePayAtSalonPage> createState() => _LivePayAtSalonPageState();
+}
+
+class _LivePayAtSalonPageState extends State<_LivePayAtSalonPage> {
+  bool busy = false;
+  String error = '';
+
+  Future<void> _confirm() async {
+    if (busy) return;
+    setState(() { busy = true; error = ''; });
+    final bloc = context.read<AppBloc>();
+    try {
+      await bloc.submit(BookAppointment(widget.appointment));
+      if (!mounted) return;
+      final saved = bloc.state.appointments.where((item) =>
+          item.salonId == widget.appointment.salonId &&
+          item.date == widget.appointment.date &&
+          item.time == widget.appointment.time).lastOrNull;
+      if (saved == null) throw StateError('The appointment could not be confirmed. Please refresh and try another slot.');
+      Navigator.pushReplacementNamed(context, '/booking/confirmed', arguments: saved);
+    } catch (e) {
+      if (mounted) setState(() { busy = false; error = e.toString(); });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Screen(
+    title: 'Confirm appointment',
+    child: ListView(padding: const EdgeInsets.all(22), children: [
+      Surface(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Appointment summary', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 14),
+        Text(widget.appointment.service.name),
+        const SizedBox(height: 6),
+        Text('${dateLabel(widget.appointment.date)} · ${widget.appointment.time}', style: const TextStyle(color: Palette.muted)),
+        const Divider(height: 26),
+        Row(children: [const Text('Service total'), const Spacer(), Text('\$${widget.appointment.service.price.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600))]),
+      ])),
+      const SizedBox(height: 18),
+      Surface(padding: const EdgeInsets.all(16), child: const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.storefront_outlined, color: Palette.purple), SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Pay at the salon', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)), SizedBox(height: 5),
+          Text('No online payment provider is connected. Reserve your time now and pay the salon directly after your service.', style: TextStyle(fontSize: 11, color: Palette.muted)),
+        ])),
+      ])),
+      if (error.isNotEmpty) ...[const SizedBox(height: 12), Text(error, style: const TextStyle(color: Colors.red, fontSize: 12))],
+      const SizedBox(height: 20),
+      AppButton(busy ? 'Reserving…' : 'Confirm · Pay at salon', onTap: busy ? null : _confirm),
+    ]),
   );
 }
 
