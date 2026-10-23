@@ -285,19 +285,36 @@ class MarkConversationRead extends AppEvent {
   final DateTime through;
 }
 
-class RefreshVendor extends AppEvent {}
+class RefreshVendor extends AppEvent {
+  RefreshVendor({this.force = false});
+  final bool force;
+}
 
 /// Loads the signed-in customer's Supabase profile into app state.
 class RestoreCustomer extends AppEvent {}
 
-class RefreshCustomerCatalog extends AppEvent {}
-
-class LoadCustomerSalonDetails extends AppEvent {
-  LoadCustomerSalonDetails(this.salonId);
-  final String salonId;
+class RefreshCustomerCatalog extends AppEvent {
+  RefreshCustomerCatalog({this.force = false});
+  final bool force;
 }
 
-class RefreshCustomerMessages extends AppEvent {}
+class LoadCustomerSalonDetails extends AppEvent {
+  LoadCustomerSalonDetails(this.salonId, {this.force = false});
+  final String salonId;
+  final bool force;
+}
+
+class RefreshCustomerMessages extends AppEvent {
+  RefreshCustomerMessages({this.force = false});
+  final bool force;
+}
+
+/// Reloads the customer's bookings after a vendor-side status transition or
+/// a customer cancellation/reschedule.
+class RefreshCustomerAppointments extends AppEvent {
+  RefreshCustomerAppointments({this.force = false});
+  final bool force;
+}
 
 class CustomerSessionEnded extends AppEvent {}
 
@@ -703,14 +720,22 @@ class AppBloc extends Bloc<AppEvent, AppState> {
               'through_time': action.through.toUtc().toIso8601String(),
             },
           );
-          add(state.isVendor ? RefreshVendor() : RefreshCustomerMessages());
+          add(
+            state.isVendor
+                ? RefreshVendor(force: true)
+                : RefreshCustomerMessages(force: true),
+          );
         } else if (action is SetThemeMode || action is ToggleTheme) {
           await handlers[action.runtimeType]?.call(action, emit);
         } else if (action is CustomerSessionEnded) {
           if (!state.isVendor && state.authenticated) {
             await _catalogSubscription?.cancel();
             await _customerMessageSubscription?.cancel();
+            await _customerAppointmentSubscription?.cancel();
             _customerMessageSubscription = null;
+            _customerAppointmentSubscription = null;
+            _cancelRefreshDebounces();
+            _resetLoadCache();
             emit(_demoState);
           }
         } else if (liveCustomer &&
@@ -723,11 +748,16 @@ class AppBloc extends Bloc<AppEvent, AppState> {
                         action is SignOut ||
                         action is ToggleFavorite ||
                         action is BookAppointment ||
+                        action is UpdateAppointment ||
+                        action is AddReview ||
                         action is SendMessage ||
-                        action is RefreshCustomerMessages)))) {
+                        action is RefreshCustomerMessages ||
+                        action is RefreshCustomerAppointments)))) {
           await _handleCustomer(action, emit);
         } else if (action is VendorSessionEnded) {
           await _stopWatchingVendorChanges();
+          _cancelRefreshDebounces();
+          _resetLoadCache();
           if (state.isVendor) emit(_demoState);
         } else if (liveVendor &&
             (action is RestoreVendor ||
@@ -777,8 +807,53 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   StreamSubscription<void>? _authSubscription;
   StreamSubscription<void>? _customerAuthSubscription;
   StreamSubscription<void>? _customerMessageSubscription;
+  StreamSubscription<void>? _customerAppointmentSubscription;
   StreamSubscription<void>? _catalogSubscription;
   StreamSubscription<void>? _dataSubscription;
+  Timer? _catalogRefreshDebounce;
+  Timer? _messageRefreshDebounce;
+  Timer? _appointmentRefreshDebounce;
+  Timer? _vendorRefreshDebounce;
+  Timer? _detailsRefreshDebounce;
+  DateTime? _catalogLoadedAt;
+  DateTime? _messagesLoadedAt;
+  DateTime? _appointmentsLoadedAt;
+  DateTime? _vendorLoadedAt;
+  final _salonDetailsLoadedAt = <String, DateTime>{};
+  final _salonDetailsLoading = <String>{};
+  bool _catalogLoading = false;
+  bool _messagesLoading = false;
+  bool _appointmentsLoading = false;
+  bool _vendorLoading = false;
+  static const _dataCacheTtl = Duration(seconds: 20);
+
+  bool _isFresh(DateTime? loadedAt, bool force) =>
+      !force &&
+      loadedAt != null &&
+      DateTime.now().difference(loadedAt) < _dataCacheTtl;
+
+  void _resetLoadCache() {
+    _catalogLoadedAt = null;
+    _messagesLoadedAt = null;
+    _appointmentsLoadedAt = null;
+    _vendorLoadedAt = null;
+    _salonDetailsLoadedAt.clear();
+    _salonDetailsLoading.clear();
+  }
+
+  void _cancelRefreshDebounces() {
+    _catalogRefreshDebounce?.cancel();
+    _messageRefreshDebounce?.cancel();
+    _appointmentRefreshDebounce?.cancel();
+    _vendorRefreshDebounce?.cancel();
+    _detailsRefreshDebounce?.cancel();
+    _catalogRefreshDebounce = null;
+    _messageRefreshDebounce = null;
+    _appointmentRefreshDebounce = null;
+    _vendorRefreshDebounce = null;
+    _detailsRefreshDebounce = null;
+  }
+
   Future<void> submit(AppEvent event) {
     final request = VendorRequest(event);
     add(request);
@@ -790,10 +865,11 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   Future<void> refreshAll() async {
     try {
       if (liveVendor && state.isVendor && vendorBackend?.hasSession == true) {
-        await submit(RefreshVendor());
+        await submit(RefreshVendor(force: true));
       } else if (liveCustomer) {
-        await submit(RefreshCustomerCatalog());
-        await submit(RefreshCustomerMessages());
+        await submit(RefreshCustomerCatalog(force: true));
+        await submit(RefreshCustomerAppointments(force: true));
+        await submit(RefreshCustomerMessages(force: true));
       }
     } catch (error) {
       debugPrint('Pull-to-refresh failed [${error.runtimeType}]');
@@ -806,7 +882,9 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     await _customerAuthSubscription?.cancel();
     await _catalogSubscription?.cancel();
     await _customerMessageSubscription?.cancel();
+    await _customerAppointmentSubscription?.cancel();
     await _dataSubscription?.cancel();
+    _cancelRefreshDebounces();
     return super.close();
   }
 
@@ -815,7 +893,11 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     if (event is SignOut) {
       await _catalogSubscription?.cancel();
       await _customerMessageSubscription?.cancel();
+      await _customerAppointmentSubscription?.cancel();
       _customerMessageSubscription = null;
+      _customerAppointmentSubscription = null;
+      _cancelRefreshDebounces();
+      _resetLoadCache();
       await backend.signOut();
       emit(_demoState);
       return;
@@ -823,21 +905,51 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     if (!backend.hasSession) {
       throw const CustomerFailure('Please sign in to your account.');
     }
-    if (event is RestoreCustomer || event is RefreshCustomerCatalog) {
+    if (event is RefreshCustomerAppointments) {
+      if (_appointmentsLoading ||
+          _isFresh(_appointmentsLoadedAt, event.force)) {
+        return;
+      }
+      _appointmentsLoading = true;
       emit(state.copy(saving: true));
-      final profile = event is RestoreCustomer
-          ? await backend.loadProfile()
-          : null;
-      final appointments = event is RestoreCustomer
-          ? await backend.loadAppointments()
-          : state.appointments;
-      final messages = event is RestoreCustomer
-          ? await backend.loadMessages()
-          : state.messages;
+      try {
+        final appointments = await backend.loadAppointments();
+        _appointmentsLoadedAt = DateTime.now();
+        emit(state.copy(appointments: appointments, saving: false));
+      } finally {
+        _appointmentsLoading = false;
+      }
+      return;
+    }
+    if (event is RestoreCustomer || event is RefreshCustomerCatalog) {
+      final isRestore = event is RestoreCustomer;
+      final force = isRestore || (event as RefreshCustomerCatalog).force;
+      if (!isRestore &&
+          (_catalogLoading || _isFresh(_catalogLoadedAt, force))) {
+        return;
+      }
+      _catalogLoading = true;
+      emit(state.copy(saving: true));
+      late final CustomerProfile? profile;
+      late final List<Appointment> appointments;
+      late final Map<String, List<ChatMessage>> messages;
+      try {
+        profile = event is RestoreCustomer ? await backend.loadProfile() : null;
+        appointments = event is RestoreCustomer
+            ? await backend.loadAppointments()
+            : state.appointments;
+        messages = event is RestoreCustomer
+            ? await backend.loadMessages()
+            : state.messages;
+      } catch (_) {
+        _catalogLoading = false;
+        rethrow;
+      }
       if (event is RestoreCustomer) _watchCustomerMessages(backend);
       try {
         final listings = await backend.discoverSalons();
         final favorites = await backend.loadFavoriteSalonIds();
+        _catalogLoadedAt = DateTime.now();
         emit(
           (profile == null ? state : _withProfile(profile)).copy(
             saving: false,
@@ -916,23 +1028,84 @@ class AppBloc extends Bloc<AppEvent, AppState> {
             discoveryError: 'Could not load salon data. Check your internet connection and retry.',
           ),
         );
+      } finally {
+        _catalogLoading = false;
       }
       return;
     }
     if (event is RefreshCustomerMessages) {
-      emit(state.copy(messages: await backend.loadMessages()));
+      if (_messagesLoading || _isFresh(_messagesLoadedAt, event.force)) {
+        return;
+      }
+      _messagesLoading = true;
+      try {
+        final messages = await backend.loadMessages();
+        _messagesLoadedAt = DateTime.now();
+        emit(state.copy(messages: messages));
+      } finally {
+        _messagesLoading = false;
+      }
       return;
     }
     if (event is LoadCustomerSalonDetails) {
-      final details = await backend.loadSalonDetails(event.salonId);
+      final loadedAt = _salonDetailsLoadedAt[event.salonId];
+      if (_salonDetailsLoading.contains(event.salonId) ||
+          (!event.force && _isFresh(loadedAt, false))) {
+        return;
+      }
+      _salonDetailsLoading.add(event.salonId);
+      try {
+        final details = await backend.loadSalonDetails(event.salonId);
+        _salonDetailsLoadedAt[event.salonId] = DateTime.now();
+        emit(
+          state.copy(
+            customerSalonDetails: {
+              ...state.customerSalonDetails,
+              event.salonId: details,
+            },
+          ),
+        );
+      } finally {
+        _salonDetailsLoading.remove(event.salonId);
+      }
+      return;
+    }
+    if (event is AddReview) {
+      final stored = state.appointments
+          .where((appointment) => appointment.id == event.appointment.id)
+          .firstOrNull;
+      if (stored == null ||
+          stored.status != BookingStatus.completed ||
+          stored.reviewed ||
+          event.stars < 1 ||
+          event.stars > 5) {
+        throw const CustomerFailure(
+          'Only a completed appointment can receive one review.',
+        );
+      }
+      await backend.submitReview(stored, event.text.trim(), event.stars);
       emit(
         state.copy(
-          customerSalonDetails: {
-            ...state.customerSalonDetails,
-            event.salonId: details,
-          },
+          reviews: [
+            ...state.reviews,
+            SalonReview(
+              stored.salonId,
+              state.name,
+              event.text.trim(),
+              event.stars,
+            ),
+          ],
+          appointments: state.appointments
+              .map(
+                (appointment) => appointment.id == stored.id
+                    ? appointment.copy(reviewed: true)
+                    : appointment,
+              )
+              .toList(),
+          notice: 'Review submitted',
         ),
       );
+      add(LoadCustomerSalonDetails(stored.salonId, force: true));
       return;
     }
     if (event is SendMessage) {
@@ -959,7 +1132,18 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       await backend.sendMessage(event.id, event.text);
       emit(
         state.copy(
-          messages: await backend.loadMessages(),
+          messages: {
+            ...state.messages,
+            event.id: [
+              ...?state.messages[event.id],
+              ChatMessage(
+                event.text.trim(),
+                AccountRole.customer,
+                createdAt: DateTime.now(),
+                id: 'local_${DateTime.now().microsecondsSinceEpoch}',
+              ),
+            ],
+          },
           notice: 'Message sent',
         ),
       );
@@ -976,6 +1160,22 @@ class AppBloc extends Bloc<AppEvent, AppState> {
         state.copy(
           appointments: [...state.appointments, appointment],
           notice: 'Appointment requested. Pay at the salon.',
+        ),
+      );
+      return;
+    }
+    if (event is UpdateAppointment) {
+      await backend.updateAppointment(event.appointment);
+      emit(
+        state.copy(
+          appointments: state.appointments
+              .map(
+                (appointment) => appointment.id == event.appointment.id
+                    ? event.appointment
+                    : appointment,
+              )
+              .toList(),
+          notice: 'Appointment updated',
         ),
       );
       return;
@@ -1029,22 +1229,74 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     clearAvatar: p.avatar == null || p.avatar!.isEmpty,
   );
 
+  void _scheduleCustomerCatalogRefresh() {
+    _catalogRefreshDebounce?.cancel();
+    _catalogRefreshDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!isClosed && liveCustomer) {
+        add(RefreshCustomerCatalog(force: true));
+      }
+    });
+  }
+
+  void _scheduleCustomerMessageRefresh() {
+    _messageRefreshDebounce?.cancel();
+    _messageRefreshDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!isClosed && liveCustomer) {
+        add(RefreshCustomerMessages(force: true));
+      }
+    });
+  }
+
+  void _scheduleCustomerAppointmentRefresh() {
+    _appointmentRefreshDebounce?.cancel();
+    _appointmentRefreshDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!isClosed && liveCustomer) {
+        add(RefreshCustomerAppointments(force: true));
+      }
+    });
+  }
+
+  void _scheduleVendorRefresh() {
+    _vendorRefreshDebounce?.cancel();
+    _vendorRefreshDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!isClosed && liveVendor && state.isVendor) {
+        add(RefreshVendor(force: true));
+      }
+    });
+  }
+
+  void _scheduleCustomerDetailsRefresh() {
+    _detailsRefreshDebounce?.cancel();
+    _detailsRefreshDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (!isClosed && liveCustomer) {
+        for (final id in state.customerSalonDetails.keys.toList()) {
+          add(LoadCustomerSalonDetails(id, force: true));
+        }
+      }
+    });
+  }
+
   void _watchCustomerMessages(CustomerBackend backend) {
     _catalogSubscription?.cancel();
     if (backend is CustomerCatalogUpdates) {
       _catalogSubscription = (backend as CustomerCatalogUpdates).catalogChanges
           .listen((_) {
             if (!isClosed && liveCustomer) {
-              add(RefreshCustomerCatalog());
-              for (final id in state.customerSalonDetails.keys.toList()) {
-                add(LoadCustomerSalonDetails(id));
-              }
+              _scheduleCustomerCatalogRefresh();
+              _scheduleCustomerDetailsRefresh();
             }
           }, onError: (Object _) {});
     }
     _customerMessageSubscription?.cancel();
     _customerMessageSubscription = backend.messageChanges.listen((_) {
-      if (!isClosed) add(RefreshCustomerMessages());
+      if (!isClosed) _scheduleCustomerMessageRefresh();
+    }, onError: (Object _) {});
+    _customerAppointmentSubscription?.cancel();
+    _customerAppointmentSubscription = backend.appointmentChanges.listen((_) {
+      if (!isClosed && liveCustomer) {
+        _scheduleCustomerAppointmentRefresh();
+        _scheduleCustomerDetailsRefresh();
+      }
     }, onError: (Object _) {});
   }
 
@@ -1052,7 +1304,7 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     await _stopWatchingVendorChanges();
     _dataSubscription = backend.changes.listen(
       (_) {
-        if (!isClosed) add(RefreshVendor());
+        if (!isClosed) _scheduleVendorRefresh();
       },
       onError: (Object _) {
         // The visible refresh control remains available if Realtime disconnects.
@@ -1072,14 +1324,28 @@ class AppBloc extends Bloc<AppEvent, AppState> {
     }
     if (event is SignOut) {
       await _stopWatchingVendorChanges();
+      _cancelRefreshDebounces();
+      _resetLoadCache();
       await backend.signOut();
       emit(_demoState);
       return;
     }
     if (event is RestoreVendor || event is RefreshVendor) {
+      final isRestore = event is RestoreVendor;
+      final force = isRestore || (event as RefreshVendor).force;
+      if (!isRestore && (_vendorLoading || _isFresh(_vendorLoadedAt, force))) {
+        return;
+      }
+      _vendorLoading = true;
       emit(state.copy(saving: true));
-      emit(await backend.load());
-      if (event is RestoreVendor) await _watchVendorChanges(backend);
+      try {
+        final loaded = await backend.load();
+        _vendorLoadedAt = DateTime.now();
+        emit(loaded);
+        if (isRestore) await _watchVendorChanges(backend);
+      } finally {
+        _vendorLoading = false;
+      }
       return;
     }
     if (!backend.hasSession) {
@@ -1206,18 +1472,55 @@ class AppBloc extends Bloc<AppEvent, AppState> {
       );
     } else if (event is UpdateAppointment) {
       await backend.updateAppointment(event.appointment);
-      emit((await backend.load()).copy(notice: 'Appointment updated'));
+      emit(
+        state.copy(
+          appointments: state.appointments
+              .map(
+                (appointment) => appointment.id == event.appointment.id
+                    ? event.appointment
+                    : appointment,
+              )
+              .toList(),
+          notice: 'Appointment updated',
+        ),
+      );
       return;
     } else if (event is SendMessage) {
       if (event.text.trim().isEmpty) {
         throw const VendorFailure('Enter a message.');
       }
       await backend.sendMessage(event.id, event.text);
-      emit(await backend.load());
+      emit(
+        state.copy(
+          messages: {
+            ...state.messages,
+            event.id: [
+              ...?state.messages[event.id],
+              ChatMessage(
+                event.text.trim(),
+                AccountRole.vendor,
+                createdAt: DateTime.now(),
+                id: 'local_${DateTime.now().microsecondsSinceEpoch}',
+              ),
+            ],
+          },
+          notice: 'Message sent',
+        ),
+      );
       return;
     } else if (event is MarkVendorNotificationRead) {
       await backend.markNotificationRead(event.id);
-      emit(await backend.load());
+      emit(
+        state.copy(
+          notifications: state.notifications
+              .map(
+                (notification) => notification.id == event.id
+                    ? notification.markRead()
+                    : notification,
+              )
+              .toList(),
+        ),
+      );
       return;
     } else {
       throw const VendorFailure(

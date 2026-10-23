@@ -15,6 +15,7 @@ import 'data/mock_salon_repository.dart';
 import 'domain/models.dart';
 import 'features/auth/presentation/auth_pages.dart';
 import 'features/auth/presentation/splash_screen.dart';
+import 'features/auth/presentation/onboarding_page.dart';
 import 'features/salons/presentation/discovery_pages.dart';
 import 'features/salons/presentation/salon_page.dart';
 import 'features/bookings/presentation/appointments_page.dart';
@@ -111,6 +112,8 @@ class MyApp extends StatelessWidget {
             Widget page;
             if (name == '/' || name == '/splash') {
               page = const SplashScreen();
+            } else if (name == '/onboarding') {
+              page = const OnboardingPage();
             } else if (name == '/role') {
               page = state.authenticated
                   ? const HomeShell()
@@ -170,7 +173,9 @@ class MyApp extends StatelessWidget {
                   BookingConfirmationPage(appointment: args),
                 '/styles/preview' => const StylePreviewPage(),
                 '/vendor/availability' => const AvailabilityPage(),
+                '/vendor/services' => const ServicesPage(),
                 '/vendor/upload' => const UploadPage(),
+                '/vendor/reviews' => const ReviewsPage(),
                 '/vendor/styles' => const CustomStylesPage(),
                 _ => const HomeShell(),
               };

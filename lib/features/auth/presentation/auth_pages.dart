@@ -86,24 +86,45 @@ class RolePage extends StatelessWidget {
               builder: (context, constraints) => SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(22, 8, 22, 20),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight - 28),
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 28,
+                  ),
                   child: Column(
                     children: [
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: IconButton(
-                          tooltip: isDark
-                              ? 'Switch to light mode'
-                              : 'Switch to dark mode',
-                          onPressed: () =>
-                              context.read<AppBloc>().add(ToggleTheme()),
-                          icon: Icon(
-                            isDark
-                                ? Icons.light_mode_rounded
-                                : Icons.dark_mode_rounded,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/onboarding'),
+                            icon: const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 16,
+                              color: Palette.gold,
+                            ),
+                            label: const Text(
+                              'Onboarding',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Palette.gold,
+                              ),
+                            ),
                           ),
-                          color: foreground,
-                        ),
+                          IconButton(
+                            tooltip: isDark
+                                ? 'Switch to light mode'
+                                : 'Switch to dark mode',
+                            onPressed: () =>
+                                context.read<AppBloc>().add(ToggleTheme()),
+                            icon: Icon(
+                              isDark
+                                  ? Icons.light_mode_rounded
+                                  : Icons.dark_mode_rounded,
+                            ),
+                            color: foreground,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Brand(size: 58),
@@ -114,7 +135,11 @@ class RolePage extends StatelessWidget {
                           Container(width: 42, height: 1, color: Palette.gold),
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 9),
-                            child: Icon(Icons.content_cut_rounded, size: 21, color: Palette.gold),
+                            child: Icon(
+                              Icons.content_cut_rounded,
+                              size: 21,
+                              color: Palette.gold,
+                            ),
                           ),
                           Container(width: 42, height: 1, color: Palette.gold),
                         ],
@@ -122,7 +147,11 @@ class RolePage extends StatelessWidget {
                       const SizedBox(height: 18),
                       Text(
                         'Sign up as',
-                        style: TextStyle(fontSize: 27, fontWeight: FontWeight.w600, color: foreground),
+                        style: TextStyle(
+                          fontSize: 27,
+                          fontWeight: FontWeight.w600,
+                          color: foreground,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -143,9 +172,9 @@ class RolePage extends StatelessWidget {
                                 isDark: isDark,
                                 foreground: foreground,
                                 muted: muted,
-                                onTap: () => context
-                                    .read<AppBloc>()
-                                    .add(SelectRole(AccountRole.vendor)),
+                                onTap: () => context.read<AppBloc>().add(
+                                  SelectRole(AccountRole.vendor),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -156,9 +185,9 @@ class RolePage extends StatelessWidget {
                                 isDark: isDark,
                                 foreground: foreground,
                                 muted: muted,
-                                onTap: () => context
-                                    .read<AppBloc>()
-                                    .add(SelectRole(AccountRole.customer)),
+                                onTap: () => context.read<AppBloc>().add(
+                                  SelectRole(AccountRole.customer),
+                                ),
                               ),
                             ),
                           ],
@@ -214,7 +243,11 @@ class RolePage extends StatelessWidget {
                                       ),
                                     ),
                                     SizedBox(width: 12),
-                                    Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 21),
+                                    Icon(
+                                      Icons.arrow_forward_rounded,
+                                      color: Colors.white,
+                                      size: 21,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -226,11 +259,11 @@ class RolePage extends StatelessWidget {
                       Text(
                         context.read<AppBloc>().liveVendor
                             ? selectedRole == AccountRole.vendor
-                                ? 'Vendor account · email & password'
-                                : 'User account · email & password'
+                                  ? 'Vendor account · email & password'
+                                  : 'User account · email & password'
                             : selectedRole == AccountRole.vendor
-                                ? 'Vendor preview · demo code 123456'
-                                : 'Frontend preview · no live account required',
+                            ? 'Vendor preview · demo code 123456'
+                            : 'Frontend preview · no live account required',
                         style: TextStyle(color: muted, fontSize: 10),
                       ),
                     ],
@@ -278,13 +311,13 @@ class _RoleCard extends StatelessWidget {
               : const Duration(milliseconds: 220),
           padding: const EdgeInsets.fromLTRB(10, 14, 10, 16),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF121521) : Colors.white.withValues(alpha: .88),
+            color: isDark
+                ? const Color(0xFF121521)
+                : Colors.white.withValues(alpha: .88),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: selected
-                  ? (isDark
-                        ? const Color(0xFFBD57FF)
-                        : const Color(0xFFB58AFF))
+                  ? (isDark ? const Color(0xFFBD57FF) : const Color(0xFFB58AFF))
                   : (isDark
                         ? const Color(0xFF252A39)
                         : const Color(0xFFEEEAF1)),
@@ -306,55 +339,61 @@ class _RoleCard extends StatelessWidget {
                 child: AspectRatio(
                   aspectRatio: 1,
                   child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(100),
-                      child: Image.asset(
-                        vendor ? 'assets/images/role_vendor.jpg' : 'assets/images/role_user.jpg',
-                        fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
+                    fit: StackFit.expand,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(100),
+                        child: Image.asset(
+                          vendor
+                              ? 'assets/images/role_vendor.jpg'
+                              : 'assets/images/role_user.jpg',
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                        ),
                       ),
-                    ),
-                    if (vendor)
+                      if (vendor)
+                        Positioned(
+                          top: 3,
+                          right: 2,
+                          child: Container(
+                            width: 31,
+                            height: 31,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD575),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.workspace_premium_rounded,
+                              color: Color(0xFF75420A),
+                              size: 19,
+                            ),
+                          ),
+                        ),
                       Positioned(
-                        top: 3,
+                        bottom: 2,
                         right: 2,
                         child: Container(
-                          width: 31,
-                          height: 31,
+                          width: 34,
+                          height: 34,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFD575),
+                            color: selected
+                                ? const Color(0xFF863DF1)
+                                : (isDark
+                                      ? const Color(0xFF22283A)
+                                      : const Color(0xFFF2F0F4)),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
                           ),
-                          child: const Icon(
-                            Icons.workspace_premium_rounded,
-                            color: Color(0xFF75420A),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
                             size: 19,
+                            color: selected ? Colors.white : foreground,
                           ),
                         ),
                       ),
-                    Positioned(
-                      bottom: 2,
-                      right: 2,
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? const Color(0xFF863DF1)
-                              : (isDark
-                                    ? const Color(0xFF22283A)
-                                    : const Color(0xFFF2F0F4)),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.arrow_forward_rounded, size: 19, color: selected ? Colors.white : foreground),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               ),
               const SizedBox(height: 15),
               Text(

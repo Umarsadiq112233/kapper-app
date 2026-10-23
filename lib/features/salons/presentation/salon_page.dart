@@ -1019,7 +1019,9 @@ class _RatingSummary extends StatelessWidget {
                           child: LinearProgressIndicator(
                             minHeight: 5,
                             value: maxCount == 0 ? 0 : counts[index] / maxCount,
-                            backgroundColor: Palette.lavender,
+                            backgroundColor: Palette.lavender.withValues(
+                              alpha: .16,
+                            ),
                             color: Palette.orchid,
                           ),
                         ),

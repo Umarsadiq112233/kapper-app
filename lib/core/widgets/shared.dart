@@ -636,6 +636,39 @@ class StoragePhoto extends StatefulWidget {
   State<StoragePhoto> createState() => _StoragePhotoState();
 }
 
+class _SignedImageCacheEntry {
+  const _SignedImageCacheEntry(this.future, this.expiresAt);
+  final Future<String> future;
+  final DateTime expiresAt;
+}
+
+const _signedImageCacheTtl = Duration(minutes: 50);
+final _signedImageCache = <String, _SignedImageCacheEntry>{};
+
+Future<String> _cachedSignedImageUrl(
+  String key,
+  Future<String> Function() loader,
+) {
+  final now = DateTime.now();
+  final existing = _signedImageCache[key];
+  if (existing != null && existing.expiresAt.isAfter(now)) {
+    return existing.future;
+  }
+
+  final future = loader();
+  final entry = _SignedImageCacheEntry(future, now.add(_signedImageCacheTtl));
+  _signedImageCache[key] = entry;
+  future.then<void>(
+    (_) {},
+    onError: (Object error, StackTrace stack) {
+      if (identical(_signedImageCache[key], entry)) {
+        _signedImageCache.remove(key);
+      }
+    },
+  );
+  return future;
+}
+
 class _StoragePhotoState extends State<StoragePhoto> {
   Future<String>? url;
 
@@ -649,9 +682,11 @@ class _StoragePhotoState extends State<StoragePhoto> {
 
   Future<String>? get signedUrl {
     final bloc = context.read<AppBloc>();
-    return bucket == 'customer-media'
-        ? bloc.customerBackend?.signedImageUrl(path)
-        : bloc.vendorBackend?.signedImageUrl(path);
+    final loader = bucket == 'customer-media'
+        ? bloc.customerBackend?.signedImageUrl
+        : bloc.vendorBackend?.signedImageUrl;
+    if (loader == null) return null;
+    return _cachedSignedImageUrl('$bucket:$path', () => loader(path));
   }
 
   @override
@@ -673,6 +708,7 @@ class _StoragePhotoState extends State<StoragePhoto> {
     height: widget.height,
     child: const Icon(Icons.image_outlined, color: Palette.purple),
   );
+
   @override
   Widget build(BuildContext context) => FutureBuilder<String>(
     future: url,

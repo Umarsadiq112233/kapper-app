@@ -1,7 +1,7 @@
 name: kapper
 description: Kapper salon booking frontend with customer and vendor experiences.
 publish_to: none
-version: 1.0.0+2 #IOS VERSION
+version: 1.0.0+6 #IOS VERSION
 environment:
   sdk: ^3.13.1
 dependencies:
@@ -17,6 +17,7 @@ dependencies:
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   path_provider: ^2.1.6
+  shared_preferences: ^2.5.3
   http: ^1.6.0
 dev_dependencies:
   flutter_test:

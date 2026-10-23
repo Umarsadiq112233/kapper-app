@@ -18,227 +18,797 @@ class ProfilePage extends StatelessWidget {
     final state = context.watch<AppBloc>().state;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final items = [
-      (Icons.favorite_border_rounded, 'My Favorites', '/favorites'),
-      (Icons.notifications_none_rounded, 'Notifications', '/notifications'),
-      (Icons.settings_outlined, 'Settings', '/settings'),
-      (Icons.payments_outlined, 'Payment & Invoices', '/transactions'),
-      (Icons.info_outline_rounded, 'About Kapper', '/about'),
-    ];
-
     return Screen(
       title: 'Profile',
+      showAppBar: false,
       onRefresh: () => context.read<AppBloc>().refreshAll(),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pushNamed(context, '/profile/edit'),
-          child: const Text('Edit Profile', style: TextStyle(fontSize: 10)),
-        ),
-      ],
-      child: SingleChildScrollView(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Column(
-          children: [
-            // Profile Header Card
-            Surface(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              child: Column(
-                children: [
-                  Center(
-                    child: ProfileAvatar(
-                      avatar: state.avatar,
-                      bytes: state.avatarBytes,
-                      isVendor: state.isVendor,
-                      size: 92,
-                      borderWidth: 3,
-                      showEditBadge: true,
-                      badgeIcon: Icons.camera_alt_rounded,
-                      onTap: () =>
-                          Navigator.pushNamed(context, '/profile/edit'),
+        padding: EdgeInsets.fromLTRB(
+          18,
+          MediaQuery.paddingOf(context).top + 14,
+          18,
+          28,
+        ),
+        children: [
+          _ProfileTopBar(isVendor: state.isVendor),
+          const SizedBox(height: 20),
+          _ProfileHeroCard(
+            state: state,
+            isDark: isDark,
+            onEdit: () => Navigator.pushNamed(context, '/profile/edit'),
+          ),
+          const SizedBox(height: 14),
+          _ProfileFeatureBanner(
+            isVendor: state.isVendor,
+            onTap: state.isVendor
+                ? null
+                : () => Navigator.pushNamed(context, '/about'),
+          ),
+          const SizedBox(height: 24),
+          if (state.isVendor)
+            _VendorProfileContent(state: state)
+          else
+            _CustomerProfileContent(state: state),
+          const SizedBox(height: 24),
+          _ProfileActionTile(
+            icon: Icons.notifications_none_rounded,
+            title: 'Notifications',
+            subtitle: state.isVendor
+                ? 'Bookings and customer updates'
+                : 'Appointment and salon updates',
+            onTap: () => Navigator.pushNamed(context, '/notifications'),
+          ),
+          const SizedBox(height: 10),
+          _ProfileActionTile(
+            icon: Icons.settings_outlined,
+            title: 'Settings',
+            subtitle: 'Preferences and account settings',
+            onTap: () => Navigator.pushNamed(context, '/settings'),
+          ),
+          const SizedBox(height: 10),
+          _ProfileActionTile(
+            icon: Icons.logout_rounded,
+            title: 'Logout',
+            subtitle: 'Sign out of this account',
+            color: Palette.pink,
+            onTap: () async {
+              if (await confirm(context, 'Do you want to log out?') &&
+                  context.mounted) {
+                if (!await saveAction(context, SignOut())) return;
+                if (!context.mounted) return;
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/role',
+                  (_) => false,
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 24),
+          Text(
+            state.isVendor && context.read<AppBloc>().liveVendor
+                ? 'Kapper · Vendor Live 1.0'
+                : 'Kapper · Premium Salon Edition 1.0',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Palette.muted, fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ReviewsPage extends StatelessWidget {
+  const ReviewsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppBloc>().state;
+    final reviews = state.reviews;
+    final average = reviews.isEmpty
+        ? 0.0
+        : reviews.fold<int>(0, (sum, review) => sum + review.stars) /
+              reviews.length;
+    final counts = List<int>.generate(
+      5,
+      (index) => reviews.where((review) => review.stars == 5 - index).length,
+    );
+    return Screen(
+      title: 'Reviews & Ratings',
+      showAppBar: false,
+      onRefresh: () => context.read<AppBloc>().refreshAll(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          18,
+          MediaQuery.paddingOf(context).top + 16,
+          18,
+          28,
+        ),
+        children: [
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Back',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
+              const SizedBox(width: 4),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reviews & Ratings',
+                      style: TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Feedback from your completed appointments',
+                      style: TextStyle(color: Palette.muted, fontSize: 11.5),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.rate_review_outlined, color: Palette.orchid),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _VendorReviewSummary(
+            average: average,
+            reviewCount: reviews.length,
+            counts: counts,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Customer feedback',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+              ),
+              Text(
+                '${reviews.length} ${reviews.length == 1 ? 'review' : 'reviews'}',
+                style: const TextStyle(color: Palette.muted, fontSize: 11),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (reviews.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 46),
+              child: EmptyState(
+                'No reviews yet. Customer ratings will appear here after completed appointments.',
+                icon: Icons.rate_review_outlined,
+              ),
+            )
+          else
+            ...reviews.reversed.map(
+              (review) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _VendorReviewCard(review: review),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VendorReviewSummary extends StatelessWidget {
+  const _VendorReviewSummary({
+    required this.average,
+    required this.reviewCount,
+    required this.counts,
+  });
+  final double average;
+  final int reviewCount;
+  final List<int> counts;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxCount = counts.fold<int>(
+      0,
+      (highest, count) => count > highest ? count : highest,
+    );
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1C1536), Color(0xFF120D27)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Palette.purple.withValues(alpha: .42)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 88,
+            child: Column(
+              children: [
+                Text(
+                  average == 0 ? '—' : average.toStringAsFixed(1),
+                  style: const TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                ),
+                const Icon(Icons.star_rounded, color: Palette.gold, size: 21),
+                const SizedBox(height: 4),
+                Text(
+                  '$reviewCount reviews',
+                  style: const TextStyle(color: Palette.muted, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              children: List.generate(5, (index) {
+                final stars = 5 - index;
+                final ratio = maxCount == 0 ? 0.0 : counts[index] / maxCount;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
                     children: [
-                      Flexible(
+                      SizedBox(
+                        width: 12,
                         child: Text(
-                          state.name,
-                          textAlign: TextAlign.center,
+                          '$stars',
                           style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.3,
+                            color: Color(0xFFD6D1E3),
+                            fontSize: 10,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 5),
                       const Icon(
-                        Icons.verified_rounded,
+                        Icons.star_rounded,
                         color: Palette.gold,
-                        size: 17,
+                        size: 13,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            minHeight: 6,
+                            value: ratio,
+                            backgroundColor: Colors.white.withValues(alpha: .1),
+                            color: Palette.orchid,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 22,
+                        child: Text(
+                          '${counts[index]}',
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(
+                            color: Palette.muted,
+                            fontSize: 9,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 2.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: (state.isVendor ? Palette.gold : Palette.purple)
-                          .withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: (state.isVendor ? Palette.gold : Palette.purple)
-                            .withValues(alpha: 0.35),
-                      ),
-                    ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VendorReviewCard extends StatelessWidget {
+  const _VendorReviewCard({required this.review});
+  final SalonReview review;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0xFF11172D),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Palette.purple.withValues(alpha: .2)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ProfileAvatar(
+          avatar: 'portrait',
+          isVendor: false,
+          size: 40,
+          radius: 12,
+          borderWidth: 0,
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
                     child: Text(
-                      state.isVendor
-                          ? '👑 Certified Salon Vendor'
-                          : '💎 VIP Grooming Client',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: state.isVendor ? Palette.gold : Palette.orchid,
+                      review.author,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  if (state.bio.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                  Text(
+                    '★ ${review.stars}.0',
+                    style: const TextStyle(
+                      color: Palette.gold,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              Text(
+                review.text.trim().isEmpty
+                    ? 'Customer left a rating without written feedback.'
+                    : review.text,
+                style: const TextStyle(
+                  color: Color(0xFFD1CCDF),
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ProfileTopBar extends StatelessWidget {
+  const _ProfileTopBar({required this.isVendor});
+  final bool isVendor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 25,
+                    height: 1.1,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  children: [
+                    TextSpan(text: isVendor ? 'Business ' : 'My '),
+                    const TextSpan(
+                      text: 'Profile',
+                      style: TextStyle(color: Palette.orchid),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                isVendor
+                    ? 'Manage your salon, services and account'
+                    : 'Manage your account and preferences',
+                style: const TextStyle(color: Palette.muted, fontSize: 11.5),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        _ProfileIconButton(
+          icon: Icons.notifications_none_rounded,
+          badge: true,
+          tooltip: 'Notifications',
+          onTap: () => Navigator.pushNamed(context, '/notifications'),
+        ),
+        const SizedBox(width: 8),
+        _ProfileIconButton(
+          icon: Icons.settings_outlined,
+          tooltip: 'Settings',
+          onTap: () => Navigator.pushNamed(context, '/settings'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileIconButton extends StatelessWidget {
+  const _ProfileIconButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+    this.badge = false,
+  });
+  final IconData icon;
+  final VoidCallback onTap;
+  final String tooltip;
+  final bool badge;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Palette.ink.withValues(alpha: .55),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Palette.purple.withValues(alpha: .22),
+                  ),
+                ),
+                child: Icon(icon, color: Colors.white, size: 23),
+              ),
+            ),
+            if (badge)
+              Positioned(
+                right: 5,
+                top: 4,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ProfileHeroCard extends StatelessWidget {
+  const _ProfileHeroCard({
+    required this.state,
+    required this.isDark,
+    required this.onEdit,
+  });
+  final AppState state;
+  final bool isDark;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = state.isVendor ? Palette.orchid : Palette.purple;
+    final stats = state.isVendor
+        ? _vendorStats(state)
+        : [
+            _ProfileStatData(
+              Icons.calendar_month_outlined,
+              state.appointments.length.toString(),
+              'Bookings',
+            ),
+            _ProfileStatData(
+              Icons.favorite_rounded,
+              state.favorites.length.toString(),
+              'Favorites',
+            ),
+            const _ProfileStatData(Icons.star_rounded, '4.8', 'Rating'),
+          ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            isDark ? const Color(0xFF1B1435) : const Color(0xFFF2EBFF),
+            isDark ? const Color(0xFF32105A) : const Color(0xFFE7D8FF),
+            isDark ? const Color(0xFF120D27) : Colors.white,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: accent.withValues(alpha: .78), width: 1.1),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: .22),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ProfileAvatar(
+                avatar: state.avatar,
+                bytes: state.avatarBytes,
+                isVendor: state.isVendor,
+                size: 94,
+                borderWidth: 3,
+                showEditBadge: true,
+                badgeIcon: Icons.camera_alt_rounded,
+                onTap: onEdit,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            state.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.verified_rounded,
+                          color: Palette.orchid,
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      state.bio,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
+                      state.isVendor
+                          ? 'Salon & Grooming Studio'
+                          : 'Premium Member',
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 11.5,
                         color: isDark ? Colors.white70 : Palette.muted,
-                        fontStyle: FontStyle.italic,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                    const SizedBox(height: 11),
+                    InkWell(
+                      onTap: onEdit,
+                      borderRadius: BorderRadius.circular(9),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Palette.purple,
+                          borderRadius: BorderRadius.circular(9),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Palette.purple.withValues(alpha: .34),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.edit_outlined, size: 14),
+                            SizedBox(width: 5),
+                            Text(
+                              'Edit Profile',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                  const SizedBox(height: 12),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 10,
-                    runSpacing: 5,
-                    children: [
-                      if (state.phone.isNotEmpty)
-                        _ProfileBadge(
-                          icon: Icons.phone_outlined,
-                          label: state.phone,
-                        ),
-                      _ProfileBadge(
-                        icon: Icons.email_outlined,
-                        label: state.email,
-                      ),
-                      _ProfileBadge(
-                        icon: Icons.location_on_outlined,
-                        label: state.address,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Menu navigation items
-            ...items
-                .where((i) => !state.isVendor || i.$3 != '/favorites')
-                .map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Surface(
-                      onTap: () => Navigator.pushNamed(context, item.$3),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Palette.purple.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              item.$1,
-                              size: 18,
-                              color: Palette.purple,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              item.$2,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: Palette.muted,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ),
-
-            // Logout Item
-            Surface(
-              onTap: () async {
-                if (await confirm(context, 'Do you want to log out?') &&
-                    context.mounted) {
-                  if (!await saveAction(context, SignOut())) return;
-                  if (!context.mounted) return;
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/role',
-                    (_) => false,
-                  );
-                }
-              },
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Palette.pink.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
+              ),
+            ],
+          ),
+          const SizedBox(height: 17),
+          Divider(
+            color: isDark ? Colors.white12 : Palette.ink.withValues(alpha: .08),
+          ),
+          SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                for (var i = 0; i < stats.length; i++) ...[
+                  Expanded(child: _ProfileStat(data: stats[i])),
+                  if (i != stats.length - 1)
+                    Container(
+                      width: 1,
+                      height: 36,
+                      color: isDark
+                          ? Colors.white12
+                          : Palette.ink.withValues(alpha: .08),
                     ),
-                    child: const Icon(
-                      Icons.logout_rounded,
-                      color: Palette.pink,
-                      size: 18,
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<_ProfileStatData> _vendorStats(AppState state) {
+  final ratings = state.reviews.map((review) => review.stars).toList();
+  final rating = ratings.isEmpty
+      ? '—'
+      : (ratings.reduce((a, b) => a + b) / ratings.length).toStringAsFixed(1);
+  final customers = state.appointments
+      .map((appointment) => appointment.customerId ?? appointment.customer)
+      .where((name) => name.trim().isNotEmpty)
+      .toSet()
+      .length;
+  return [
+    _ProfileStatData(Icons.star_rounded, rating, 'Rating'),
+    _ProfileStatData(
+      Icons.calendar_month_outlined,
+      _compactCount(state.appointments.length),
+      'Bookings',
+    ),
+    _ProfileStatData(
+      Icons.groups_rounded,
+      _compactCount(customers),
+      'Customers',
+    ),
+  ];
+}
+
+String _compactCount(int value) => value >= 1000
+    ? '${(value / 1000).toStringAsFixed(value >= 10000 ? 0 : 1)}K'
+    : value.toString();
+
+class _ProfileStatData {
+  const _ProfileStatData(this.icon, this.value, this.label);
+  final IconData icon;
+  final String value;
+  final String label;
+}
+
+class _ProfileStat extends StatelessWidget {
+  const _ProfileStat({required this.data});
+  final _ProfileStatData data;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(data.icon, color: Palette.orchid, size: 21),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              data.value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+            Text(
+              data.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9, color: Palette.muted),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _ProfileFeatureBanner extends StatelessWidget {
+  const _ProfileFeatureBanner({required this.isVendor, this.onTap});
+  final bool isVendor;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isVendor ? Palette.gold : Palette.purple;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isVendor
+                ? [const Color(0xFF382717), const Color(0xFF1C1520)]
+                : [const Color(0xFF241549), const Color(0xFF130E28)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: .64)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .16),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                isVendor
+                    ? Icons.workspace_premium_rounded
+                    : Icons.diamond_rounded,
+                color: color,
+                size: 29,
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isVendor ? 'Certified Salon Vendor' : 'Premium Member',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  const Text(
-                    'Logout',
-                    style: TextStyle(
-                      color: Palette.pink,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 3),
+                  Text(
+                    isVendor
+                        ? 'Verified business on Kapper platform'
+                        : 'Enjoy exclusive offers and discounts',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10.5,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              state.isVendor && context.read<AppBloc>().liveVendor
-                  ? 'Kapper · Vendor Live 1.0'
-                  : 'Kapper · Premium Salon Edition 1.0',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Palette.muted, fontSize: 10),
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: Palette.purple,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.chevron_right, color: Colors.white),
             ),
-            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -246,33 +816,338 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-class _ProfileBadge extends StatelessWidget {
-  const _ProfileBadge({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
+class _CustomerProfileContent extends StatelessWidget {
+  const _CustomerProfileContent({required this.state});
+  final AppState state;
 
   @override
-  Widget build(BuildContext context) {
-    if (label.trim().isEmpty) return const SizedBox.shrink();
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 260),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: Palette.muted),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, color: Palette.muted),
-            ),
+  Widget build(BuildContext context) => Column(
+    children: [
+      _ProfileSectionTitle(
+        icon: Icons.person_rounded,
+        title: 'Personal Information',
+        onEdit: () => Navigator.pushNamed(context, '/profile/edit'),
+      ),
+      const SizedBox(height: 10),
+      _ProfileInfoCard(
+        rows: [
+          _ProfileInfoData(
+            Icons.person_outline_rounded,
+            'Full Name',
+            state.name,
+          ),
+          _ProfileInfoData(Icons.mail_outline_rounded, 'Email', state.email),
+          _ProfileInfoData(Icons.phone_outlined, 'Phone', state.phone),
+          _ProfileInfoData(
+            Icons.location_on_outlined,
+            'Location',
+            state.address,
           ),
         ],
+        onEdit: () => Navigator.pushNamed(context, '/profile/edit'),
       ),
-    );
-  }
+      const SizedBox(height: 16),
+      _ProfileActionTile(
+        icon: Icons.calendar_month_outlined,
+        title: 'My Bookings',
+        subtitle: 'View and manage your appointments',
+        onTap: () => Navigator.pushNamed(context, '/appointments'),
+      ),
+      const SizedBox(height: 10),
+      _ProfileActionTile(
+        icon: Icons.favorite_border_rounded,
+        title: 'My Favorites',
+        subtitle: 'Saved salons and services',
+        onTap: () => Navigator.pushNamed(context, '/favorites'),
+      ),
+      const SizedBox(height: 10),
+      _ProfileActionTile(
+        icon: Icons.credit_card_outlined,
+        title: 'Payment Methods',
+        subtitle: 'Manage cards and wallets',
+        onTap: () => Navigator.pushNamed(context, '/transactions'),
+      ),
+    ],
+  );
+}
+
+class _VendorProfileContent extends StatelessWidget {
+  const _VendorProfileContent({required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      _ProfileSectionTitle(
+        icon: Icons.storefront_rounded,
+        title: 'Business Information',
+        onEdit: () => Navigator.pushNamed(context, '/profile/edit'),
+      ),
+      const SizedBox(height: 10),
+      _ProfileInfoCard(
+        rows: [
+          _ProfileInfoData(
+            Icons.storefront_outlined,
+            'Business Name',
+            state.name,
+          ),
+          _ProfileInfoData(Icons.mail_outline_rounded, 'Email', state.email),
+          _ProfileInfoData(Icons.phone_outlined, 'Phone', state.phone),
+          _ProfileInfoData(
+            Icons.location_on_outlined,
+            'Address',
+            state.address,
+          ),
+          _ProfileInfoData(
+            Icons.access_time_rounded,
+            'Business Hours',
+            state.dates.isEmpty
+                ? 'Not configured'
+                : '${state.dates.length} days · ${state.slots.length} slots',
+          ),
+        ],
+        onEdit: () => Navigator.pushNamed(context, '/profile/edit'),
+      ),
+      const SizedBox(height: 16),
+      _ProfileActionTile(
+        icon: Icons.content_cut_rounded,
+        title: 'My Services',
+        subtitle: 'Manage salon services and prices',
+        onTap: () => Navigator.pushNamed(context, '/vendor/services'),
+      ),
+      const SizedBox(height: 10),
+      _ProfileActionTile(
+        icon: Icons.photo_library_outlined,
+        title: 'Gallery',
+        subtitle: 'Photos and portfolio',
+        onTap: () => Navigator.pushNamed(context, '/vendor/upload'),
+      ),
+      const SizedBox(height: 10),
+      _ProfileActionTile(
+        icon: Icons.rate_review_outlined,
+        title: 'Reviews & Ratings',
+        subtitle: 'See customer feedback and your rating',
+        onTap: () => Navigator.pushNamed(context, '/vendor/reviews'),
+      ),
+      const SizedBox(height: 10),
+      _ProfileActionTile(
+        icon: Icons.groups_rounded,
+        title: 'Staff Management',
+        subtitle: 'Manage your team and barbers',
+        onTap: () => toast(
+          context,
+          'Staff management will be available when team profiles are connected.',
+        ),
+      ),
+      const SizedBox(height: 10),
+      _ProfileActionTile(
+        icon: Icons.schedule_rounded,
+        title: 'Availability',
+        subtitle: 'Manage dates and time slots',
+        onTap: () => Navigator.pushNamed(context, '/vendor/availability'),
+      ),
+    ],
+  );
+}
+
+class _ProfileSectionTitle extends StatelessWidget {
+  const _ProfileSectionTitle({
+    required this.icon,
+    required this.title,
+    required this.onEdit,
+  });
+  final IconData icon;
+  final String title;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, color: Palette.orchid, size: 25),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+      ),
+      TextButton(
+        onPressed: onEdit,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: const Text(
+          'Edit',
+          style: TextStyle(
+            color: Palette.orchid,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _ProfileInfoData {
+  const _ProfileInfoData(this.icon, this.label, this.value);
+  final IconData icon;
+  final String label;
+  final String value;
+}
+
+class _ProfileInfoCard extends StatelessWidget {
+  const _ProfileInfoCard({required this.rows, required this.onEdit});
+  final List<_ProfileInfoData> rows;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14),
+    decoration: BoxDecoration(
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF11172D)
+          : Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Palette.purple.withValues(alpha: .18)),
+    ),
+    child: Column(
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          InkWell(
+            onTap: onEdit,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              child: Row(
+                children: [
+                  Icon(rows[i].icon, color: Palette.orchid, size: 22),
+                  const SizedBox(width: 14),
+                  SizedBox(
+                    width: 98,
+                    child: Text(
+                      rows[i].label,
+                      style: const TextStyle(
+                        color: Palette.muted,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: rows[i].label == 'Full Name'
+                        ? Text.rich(
+                            TextSpan(
+                              text: rows[i].value.trim().isEmpty
+                                  ? 'Not added'
+                                  : '${rows[i].value} ',
+                              style: const TextStyle(fontSize: 11.5),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                          )
+                        : Text(
+                            rows[i].value.trim().isEmpty
+                                ? 'Not added'
+                                : rows[i].value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(fontSize: 11.5),
+                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Palette.muted,
+                    size: 19,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (i != rows.length - 1)
+            Divider(
+              height: 1,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white10
+                  : Palette.ink.withValues(alpha: .08),
+            ),
+        ],
+      ],
+    ),
+  );
+}
+
+class _ProfileActionTile extends StatelessWidget {
+  const _ProfileActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.color = Palette.orchid,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(18),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF11172D)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Palette.purple.withValues(alpha: .18)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .14),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, color: Palette.muted),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: Palette.muted),
+        ],
+      ),
+    ),
+  );
 }
 
 class EditProfilePage extends StatefulWidget {

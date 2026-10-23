@@ -16,7 +16,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final bloc = AppBloc(MockSalonRepository());
-    await tester.pumpWidget(MyApp(bloc: bloc));
+    await tester.pumpWidget(MyApp(bloc: bloc, initialRoute: '/role'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Vendor'));
     await tester.pumpAndSettle();
@@ -40,8 +40,8 @@ void main() {
           SelectRole(vendor ? AccountRole.vendor : AccountRole.customer),
         );
         bloc.add(SignIn('', ''));
-        await tester.pump();
-        await tester.pumpWidget(MyApp(bloc: bloc));
+        await bloc.stream.firstWhere((s) => s.authenticated);
+        await tester.pumpWidget(MyApp(bloc: bloc, initialRoute: '/home'));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         await tester.tap(find.text(vendor ? 'Appointment' : 'Bookings').last);
